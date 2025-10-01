@@ -58,4 +58,4 @@ This roadmap tracks the evolution of the multi-modal knowledge management demo. 
 - Update this file after each planning session or phase review.
 - Record blockers, decisions, and links to issues/PRs under the relevant phase.
 - Always document the automated test results and user-testing feedback before marking a phase done.
-
+- Start a **new** assistant session at the end of each phase, seeding the conversation with a short summary and links to prior context.
