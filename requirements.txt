@@ -1,0 +1,10 @@
+pdfplumber
+unstructured[pdf]
+sentence-transformers
+faiss-cpu
+langchain-community
+langchain-core
+langchain-text-splitters
+pydantic==1.*
+streamlit
+requests

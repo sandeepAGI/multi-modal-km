@@ -1,0 +1,17 @@
+.DS_Store
+.venv/
+.venv*/
+__pycache__/
+*.pyc
+
+# Build artifacts
+data/indexes/*
+!data/indexes/.gitkeep
+data/raw/*
+!data/raw/.gitkeep
+*.faiss
+*.pkl
+
+# Local configuration
+.env
+.env.*
