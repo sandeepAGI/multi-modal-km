@@ -1,6 +1,6 @@
-# PDF Retrieval-Augmented QA Demo
+# Multi-Modal Knowledge Management Demo
 
-This repository contains a minimal Retrieval-Augmented Generation (RAG) pipeline that turns construction PDFs into a question-answering tool powered by local embedding search and an Ollama-served language model. Two variants are included: one targeting the *Architectural-Structural Holabird Bid Set Drawings* and another targeting the *BIM Guide 07* document. The workflow demonstrates how to chunk a PDF, embed the text with sentence-transformer models, index the vectors with FAISS, and surface relevant context to a Streamlit chat-style UI.
+This repository is the staging ground for an upgraded multi-modal knowledge management prototype. The current implementation showcases a Retrieval-Augmented Generation (RAG) workflow over construction PDFs, while the roadmap expands toward richer diagram understanding, cloud-friendly indexing jobs, and hosted LLM integrations. The existing apps remain useful as a baseline while we layer on those capabilities.
 
 ## Repository Structure
 
@@ -30,7 +30,7 @@ This repository contains a minimal Retrieval-Augmented Generation (RAG) pipeline
    ```bash
    pip install -r requirements.txt
    ```
-4. **Ollama** – Install [Ollama](https://ollama.ai/) and pull the model referenced in the apps:
+4. **LLM Endpoint** – The current Streamlit apps call a local Ollama server. Install [Ollama](https://ollama.ai/) and pull the demo model, or swap in your preferred endpoint when the new configuration layer lands:
    ```bash
    ollama pull mistral:7b-instruct-q4_K_M
    ollama serve  # ensures the API is listening on http://localhost:11434
@@ -66,19 +66,21 @@ When you submit a question:
 - The app embeds the query, performs a nearest-neighbor search in FAISS, and retrieves the top five chunk texts with their `page_num` metadata.
 - The chunks are concatenated into a structured context block (prefixed with `[page N]`).
 - A system prompt instructs the model to rely exclusively on the provided context, respond with "NOT FOUND" when necessary, and include page citations like `(page 7)`.
-- The Ollama endpoint returns the model's answer, which Streamlit displays immediately.
+- The LLM endpoint (Ollama by default) returns the model's answer, which Streamlit displays immediately.
 
 If the index or metadata files are missing, the app raises an error while loading. Ensure the appropriate `build_index*.py` script has been run first.
 
-## Troubleshooting and Notes
+## Roadmap & Notes
 
 - **Caching** – `st.cache_resource` ensures the FAISS index and embeddings are loaded once per Streamlit session. Restart the app (or clear cache via the Streamlit menu) if you regenerate the index.
 - **OCR Accuracy** – OCR quality depends on your Tesseract installation and PDF clarity. For noisy scans, consider preprocessing or switching to a higher-quality OCR engine.
-- **Model Endpoint** – The Ollama call is synchronous (`stream=False`) and expects the JSON response shape returned by the `generate` API. Adjust the `ollama` helper if you switch to another backend (e.g., OpenAI, vLLM).
-- **Scaling** – This demo uses an in-memory FAISS index (`IndexFlatL2`). For larger corpora or persistence, consider FAISS on-disk indices or a vector database service.
+- **Model Endpoint** – The current helper hits Ollama synchronously. Upcoming work will introduce a pluggable configuration layer for hosted APIs (Anthropic, OpenAI, etc.) with retry handling and observability.
+- **Diagram Awareness** – Enhancements in progress include layout-preserving extraction, vision-language embeddings, and richer metadata (bounding boxes, relationships) to surface diagram structure.
+- **Scaling** – This demo uses an in-memory FAISS index (`IndexFlatL2`). The architecture will evolve toward cloud-friendly vector stores and batch ingestion jobs capable of handling thousands of diagrams.
 
 ## Next Steps
 
-- Add automated tests or linting to guard the indexing scripts.
-- Extend the Streamlit UI with chat history, follow-up questions, or confidence indicators.
-- Experiment with different embedding models, chunk sizes, or reranking strategies to improve recall and answer quality.
+- Solidify the upgraded Streamlit layout (diagram selector, richer evidence display).
+- Prototype enhanced ingestion that fuses OCR text with detected visual elements.
+- Evaluate hosted LLMs as primary reasoning engines, retaining Ollama as an offline fallback.
+- Add automated smoke tests covering index regeneration and core Q&A flows.
