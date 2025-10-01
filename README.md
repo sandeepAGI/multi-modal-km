@@ -84,3 +84,4 @@ If the index or metadata files are missing, the app raises an error while loadin
 - Prototype enhanced ingestion that fuses OCR text with detected visual elements.
 - Evaluate hosted LLMs as primary reasoning engines, retaining Ollama as an offline fallback.
 - Add automated smoke tests covering index regeneration and core Q&A flows.
+- Track milestone details and validation gates in `docs/roadmap.md`; update it after each planning review.
