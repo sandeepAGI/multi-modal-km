@@ -24,13 +24,15 @@ This repository is the staging ground for an upgraded multi-modal knowledge mana
 
 ## Environment Setup
 
-1. **Python** – Use Python 3.9+ and create a fresh virtual environment.
-2. **System Packages** – Install [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) so `pytesseract` can process image-only PDF pages. FAISS wheels are included via `faiss-cpu`, so no extra system install is required on most platforms.
-3. **Python Dependencies**:
+1. **Python 3.11** – Install via Homebrew (`brew install python@3.11`) or pyenv. The FAISS wheels bundled in `requirements.txt` target CPython 3.11; newer interpreters currently segfault on import.
+2. **System Packages** – Install [Tesseract OCR](https://github.com/tesseract-ocr/tesseract) so `pytesseract` can process image-only PDF pages (macOS: `brew install tesseract`).
+3. **Project Bootstrap** – From the repository root, run the setup script (or `make setup`) to create `.venv`, upgrade `pip`, and install dependencies:
    ```bash
-   pip install -r requirements.txt
+   ./scripts/setup.sh
+   # or
+   make setup
    ```
-4. **LLM Endpoint** – The current Streamlit apps call a local Ollama server. Install [Ollama](https://ollama.ai/) and pull the demo model, or swap in your preferred endpoint when the new configuration layer lands:
+4. **LLM Endpoint** – The Streamlit apps call a local Ollama server. Install [Ollama](https://ollama.ai/) and pull the demo model, or swap in your preferred endpoint when the configuration layer lands:
    ```bash
    ollama pull mistral:7b-instruct-q4_K_M
    ollama serve  # ensures the API is listening on http://localhost:11434
@@ -38,14 +40,13 @@ This repository is the staging ground for an upgraded multi-modal knowledge mana
 
 ## Building an Index
 
-Run the corresponding script depending on which PDF you want to index. The script reads `PDF_PATH`, so update that constant if you replace the sample documents.
+Regenerate both indexes with a single command after updating PDFs or chunking parameters:
 
 ```bash
-python pipelines/build_bid_set_index.py      # bids set drawings -> data/indexes/index.faiss
-python pipelines/build_bim_guide_index.py    # BIM Guide -> data/indexes/index1.faiss
+make indexes
 ```
 
-Each script prints the number of chunks created; successful execution generates both the FAISS index and the pickled metadata file in the repository root. Rerun the script whenever you change the PDF, chunking settings, or embedding model.
+Behind the scenes this invokes `.venv/bin/python pipelines/build_bid_set_index.py` and `build_bim_guide_index.py`. Each script prints the number of chunks created and writes the FAISS index plus pickled metadata into `data/indexes/`.
 
 ### Customizing for New Documents
 
@@ -55,20 +56,35 @@ Each script prints the number of chunks created; successful execution generates 
 
 ## Running the Streamlit App
 
-Launch the app associated with the index you built:
+Launch the multi-diagram Streamlit assistant (the helper script exports `PYTHONPATH` and activates the virtualenv automatically):
 
 ```bash
-streamlit run apps/streamlit/bid_set_app.py      # Uses data/indexes/index.faiss + meta.pkl
-streamlit run apps/streamlit/bim_guide_app.py    # Uses data/indexes/index1.faiss + meta1.pkl
+make app
+# or pass a custom entry point
+APP=apps/streamlit/bid_set_app.py make app
 ```
+
+The assistant presents a diagram picker in the sidebar, renders chat-style conversations, shows citation cards for each retrieved chunk, and offers a transcript download once a session has responses. Legacy single-document entry points (`bid_set_app.py`, `bim_guide_app.py`) remain available as simple fallbacks.
 
 When you submit a question:
 - The app embeds the query, performs a nearest-neighbor search in FAISS, and retrieves the top five chunk texts with their `page_num` metadata.
 - The chunks are concatenated into a structured context block (prefixed with `[page N]`).
 - A system prompt instructs the model to rely exclusively on the provided context, respond with "NOT FOUND" when necessary, and include page citations like `(page 7)`.
-- The LLM endpoint (Ollama by default) returns the model's answer, which Streamlit displays immediately.
+- The LLM endpoint (Ollama by default) returns the model's answer, which Streamlit displays alongside citation previews.
 
 If the index or metadata files are missing, the app raises an error while loading. Ensure the appropriate `build_index*.py` script has been run first.
+
+### Smoke Test
+
+Once indexes exist locally, run the lightweight retrieval smoke check to confirm embeddings, FAISS artifacts, and metadata load without errors:
+
+```bash
+make smoke
+# equivalently
+./scripts/run_tests.sh tests/test_diagram_assistant_smoke.py -q
+```
+
+The test instantiates the shared retrieval stack for every available diagram source and asserts that at least one chunk is returned for representative queries. It skips automatically when indexes are absent.
 
 ## Roadmap & Notes
 
@@ -77,6 +93,29 @@ If the index or metadata files are missing, the app raises an error while loadin
 - **Model Endpoint** – The current helper hits Ollama synchronously. Upcoming work will introduce a pluggable configuration layer for hosted APIs (Anthropic, OpenAI, etc.) with retry handling and observability.
 - **Diagram Awareness** – Enhancements in progress include layout-preserving extraction, vision-language embeddings, and richer metadata (bounding boxes, relationships) to surface diagram structure.
 - **Scaling** – This demo uses an in-memory FAISS index (`IndexFlatL2`). The architecture will evolve toward cloud-friendly vector stores and batch ingestion jobs capable of handling thousands of diagrams.
+
+## Embedding & Vision Utilities
+
+- **Golden-set benchmark** – Run `python scripts/embedding_benchmark.py --models … --top-k 5` to compare embedding providers. Current hit@5 results on the Holabird/BIM golden set:
+
+  | Provider | Holabird | GSA BIM |
+  | --- | --- | --- |
+  | `sentence:all-MiniLM-L6-v2` | 2/5 (40 %) | 2/5 (40 %) |
+  | `openai:text-embedding-3-small` | 3/5 (60 %) | 2/5 (40 %) |
+  | `jina:jina-embeddings-v2-base-en` | 3/5 (60 %) | 3/5 (60 %) |
+  | `nomic:nomic-ai/nomic-embed-text-v1.5` | 2/5 (40 %) | 2/5 (40 %) |
+  | `google:gemini-embedding-001` | 4/5 (80 %) | 3/5 (60 %) |
+
+- **CLIP page embeddings** – Generate image embeddings for the golden-set PDFs with `python scripts/build_clip_image_embeddings.py`. This renders each page via `pypdfium2`, encodes it with `openai/clip-vit-base-patch32`, and writes `data/clip_embeddings/<dataset>.npz` for downstream fusion experiments.
+- **Text+vision fusion** – Blend a text model with CLIP by supplying the fusion provider, e.g.:
+
+  ```bash
+  python scripts/embedding_benchmark.py \
+    --models 'fusion:text=sentence/all-MiniLM-L6-v2,clip=openai/clip-vit-base-patch32' \
+    --fusion-alpha 0.7 --top-k 5
+  ```
+
+  `fusion-alpha` controls the weighting between text and image similarity (α for text, 1 − α for image). Fusion currently mirrors the text baseline until page-level scoring is updated to credit visual hits.
 
 ## Next Steps
 

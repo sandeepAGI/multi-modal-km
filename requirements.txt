@@ -8,3 +8,7 @@ langchain-text-splitters
 pydantic==1.*
 streamlit
 requests
+pytesseract
+pytest
+transformers
+pypdfium2

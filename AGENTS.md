@@ -11,6 +11,8 @@
 - `python pipelines/build_bim_guide_index.py` does the same for the BIM Guide document.
 - `streamlit run apps/streamlit/bid_set_app.py` (or `bim_guide_app.py`) launches the respective UI; confirm Ollama is serving before running.
 - `ollama pull mistral:7b-instruct-q4_K_M` fetches the local fallback LLM. Swap the tag if using a different model.
+- `python scripts/build_clip_image_embeddings.py` renders golden-set PDFs to images and stores CLIP page embeddings in `data/clip_embeddings/` for vision experiments.
+- `python scripts/embedding_benchmark.py --models …` compares embedding providers (text-only, Gemini, CLIP, or fusion). Use `fusion:text=<provider/model>,clip=<clip model>` with `--fusion-alpha` to weight text vs image similarity.
 
 ## Coding Style & Naming Conventions
 - Use 4-space indentation, `snake_case` for functions/variables, and PascalCase for classes.

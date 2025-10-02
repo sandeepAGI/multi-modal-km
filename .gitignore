@@ -9,6 +9,8 @@ data/indexes/*
 !data/indexes/.gitkeep
 data/raw/*
 !data/raw/.gitkeep
+data/clip_embeddings/*
+!data/clip_embeddings/.gitkeep
 *.faiss
 *.pkl
 

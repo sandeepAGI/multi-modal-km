@@ -13,24 +13,31 @@ This roadmap tracks the evolution of the multi-modal knowledge management demo. 
 ## Phase 1 – Streamlit Experience Upgrade (Target: 2025-10-01)
 - **Objectives**: Deliver multi-diagram UI with diagram selection, context previews, and richer evidence display.
 - **Tasks**:
-  - Design component layout (`apps/streamlit/` scaffolding, session state schema).
-  - Implement diagram picker, chat-style responses, and citation cards.
-  - Persist session transcripts for export or review.
+  - [x] Design component layout (`apps/streamlit/` scaffolding, session state schema).
+  - [x] Implement diagram picker, chat-style responses, and citation cards (`apps/streamlit/diagram_assistant_app.py`).
+  - [x] Persist session transcripts for export or review (sidebar download control).
 - **Testing & Validation**:
-  - Automated smoke: load app, submit scripted question set, assert response codes.
-  - User session: demo with stakeholder, capture feedback and screenshots.
-  - Exit when both automated checks pass and user sign-off recorded in this file (link to notes).
+  - Automated smoke: load app, submit scripted question set, assert response codes. Retrieval stack check (`tests/test_diagram_assistant_smoke.py`) and manual UI walkthrough (`docs/ui_smoke_script.md`) **complete (2025-02-15)**.
+  - User session: demo with stakeholder, capture feedback and screenshots. **Complete (2025-02-15)** — feedback: diagram switching, chat history, citation cards, and transcript export validated; no blockers.
+  - Exit when both automated checks pass and user sign-off recorded in this file (link to notes). ✅
 
 ## Phase 2 – Enhanced Ingestion Pipeline (Target: 2025-10-01)
 - **Objectives**: Extract layout-aware text and visual cues from diagrams and store enriched metadata.
 - **Tasks**:
   - Evaluate PDF parsers/OCR combos (layout-aware extraction, vision models).
+    - ✅ Golden-set embedding benchmark complete: MiniLM 40 %, OpenAI 60 %/40 %, Jina 60 %/60 %, Nomic 40 %, Gemini text 80 %/60 %.
+    - ✅ CLIP page embedding pipeline (`scripts/build_clip_image_embeddings.py`) generates per-page vision vectors stored under `data/clip_embeddings/`.
+    - ⚠️ Next: refine scoring so CLIP/Gemini vision hits are credited (page-level matching, optional captions).
   - Implement pipeline that outputs chunk text + bounding boxes + entity tags.
   - Store derived metadata in structured format (`data/processed/` or vector DB).
 - **Testing & Validation**:
   - Automated regression: compare extracted entities vs. golden set for sample pages.
   - Manual QA: review generated overlays/highlights on at least two diagrams with domain user.
   - Exit upon hitting accuracy thresholds agreed with stakeholders (document metrics here).
+- **Notes (2024-10-20)**:
+  - Gemini multimodal endpoint still pending Vertex AI access; re-test vision embeddings once Google approval lands.
+  - Weighted text+CLIP fusion available (`fusion:text=…,clip=…`, `--fusion-alpha`), currently mirrors text baseline until hit detection is updated.
+  - Immediate next focus: revisit chunking parameters (larger windows, higher overlap, increased top-K retrieval) alongside page-level scoring so broader context actually reaches the generator.
 
 ## Phase 3 – Retrieval & LLM Orchestration (Target: 2025-10-02)
 - **Objectives**: Support hybrid retrieval and pluggable hosted LLMs with observability and fallbacks.
